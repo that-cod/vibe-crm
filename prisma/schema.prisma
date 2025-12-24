@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User model for authentication
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String?
+  image           String?
+  googleId        String?          @unique
+  emailVerified   DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  businessProfile BusinessProfile?
+  crmProjects     CRMProject[]
+  
+  @@map("users")
+}
+
+// Business profile collected during onboarding
+model BusinessProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  businessName    String
+  industry        String
+  teamSize        String
+  primaryUseCase  String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("business_profiles")
+}
+
+// CRM Project - each generated CRM instance
+model CRMProject {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  projectName     String
+  schemaName      String   @unique // PostgreSQL schema name (e.g., "user_abc123_a1b2c3d4_crm")
+  originalPrompt  String   @db.Text
+  generatedSchema Json     // Stores the CRM specification JSON
+  generatedSQL    String   @db.Text // Stores SQL migration
+  generatedCode   String   @db.Text // Stores React/Refine code as JSON
+  
+  // Version tracking
+  currentVersion  Int      @default(1) // Current schema version
+  
+  deploymentUrl   String?  // Future: Vercel deployment URL
+  status          String   @default("generating") // generating, completed, failed
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  customizations  CRMCustomization[]
+  
+  @@index([userId])
+  @@map("crm_projects")
+}
+
+// Track customization history for each project
+model CRMCustomization {
+  id          String      @id @default(cuid())
+  projectId   String
+  project     CRMProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  prompt      String      @db.Text
+  changes     Json        // What was modified (schema diff, code changes)
+  
+  // Versioning for rollback capability
+  schemaVersion   Int      // Version this customization creates
+  previousVersion Int      // Version before this change
+  canRollback     Boolean  @default(true) // Whether this change can be rolled back
+  rollbackSQL     String?  @db.Text // SQL to undo this change
+  
+  appliedAt   DateTime    @default(now())
+  
+  @@index([projectId])
+  @@index([schemaVersion]) // For finding specific versions
+  @@map("crm_customizations")
+}

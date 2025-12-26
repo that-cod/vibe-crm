@@ -36,6 +36,13 @@ export default function DashboardPage() {
             router.push("/")
         } else if (status === "authenticated") {
             fetchProjects()
+
+            // Check for stored prompt from landing page
+            const storedPrompt = sessionStorage.getItem("pendingPrompt")
+            if (storedPrompt) {
+                setPrompt(storedPrompt)
+                sessionStorage.removeItem("pendingPrompt")
+            }
         }
     }, [status, router])
 

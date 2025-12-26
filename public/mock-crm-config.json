@@ -1,0 +1,903 @@
+{
+    "version": "1.0.0",
+    "name": "Real Estate CRM",
+    "description": "Complete CRM system for managing properties, leads, agents, and showings",
+    "theme": {
+        "primaryColor": "#3B82F6",
+        "secondaryColor": "#10B981",
+        "fontFamily": "Inter, sans-serif"
+    },
+    "entities": [
+        {
+            "id": "property",
+            "name": "Property",
+            "namePlural": "Properties",
+            "label": "Property",
+            "labelPlural": "Properties",
+            "description": "Real estate properties for sale or rent",
+            "icon": "home",
+            "color": "#3B82F6",
+            "tableName": "properties",
+            "titleField": "address",
+            "defaultSortField": "createdAt",
+            "defaultSortOrder": "desc",
+            "softDelete": true,
+            "fields": [
+                {
+                    "id": "id",
+                    "name": "id",
+                    "label": "ID",
+                    "type": "autoId",
+                    "required": true,
+                    "showInList": true
+                },
+                {
+                    "id": "address",
+                    "name": "address",
+                    "label": "Address",
+                    "type": "text",
+                    "required": true,
+                    "showInList": true,
+                    "searchable": true,
+                    "sortable": true,
+                    "placeholder": "123 Main St, City, State"
+                },
+                {
+                    "id": "propertyType",
+                    "name": "propertyType",
+                    "label": "Property Type",
+                    "type": "select",
+                    "required": true,
+                    "showInList": true,
+                    "sortable": true,
+                    "options": [
+                        {
+                            "value": "house",
+                            "label": "House",
+                            "icon": "home"
+                        },
+                        {
+                            "value": "apartment",
+                            "label": "Apartment",
+                            "icon": "building"
+                        },
+                        {
+                            "value": "condo",
+                            "label": "Condo",
+                            "icon": "building-community"
+                        },
+                        {
+                            "value": "land",
+                            "label": "Land",
+                            "icon": "map"
+                        },
+                        {
+                            "value": "commercial",
+                            "label": "Commercial",
+                            "icon": "briefcase"
+                        }
+                    ]
+                },
+                {
+                    "id": "status",
+                    "name": "status",
+                    "label": "Status",
+                    "type": "select",
+                    "required": true,
+                    "showInList": true,
+                    "sortable": true,
+                    "defaultValue": "available",
+                    "options": [
+                        {
+                            "value": "available",
+                            "label": "Available",
+                            "color": "#10B981"
+                        },
+                        {
+                            "value": "underContract",
+                            "label": "Under Contract",
+                            "color": "#F59E0B"
+                        },
+                        {
+                            "value": "sold",
+                            "label": "Sold",
+                            "color": "#6B7280"
+                        },
+                        {
+                            "value": "offMarket",
+                            "label": "Off Market",
+                            "color": "#EF4444"
+                        }
+                    ]
+                },
+                {
+                    "id": "price",
+                    "name": "price",
+                    "label": "Price",
+                    "type": "currency",
+                    "currency": "USD",
+                    "required": true,
+                    "showInList": true,
+                    "sortable": true,
+                    "min": 0
+                },
+                {
+                    "id": "bedrooms",
+                    "name": "bedrooms",
+                    "label": "Bedrooms",
+                    "type": "number",
+                    "showInList": true,
+                    "sortable": true,
+                    "min": 0,
+                    "step": 1
+                },
+                {
+                    "id": "bathrooms",
+                    "name": "bathrooms",
+                    "label": "Bathrooms",
+                    "type": "number",
+                    "showInList": true,
+                    "sortable": true,
+                    "min": 0,
+                    "step": 0.5
+                },
+                {
+                    "id": "squareFeet",
+                    "name": "squareFeet",
+                    "label": "Square Feet",
+                    "type": "number",
+                    "showInList": false,
+                    "sortable": true,
+                    "min": 0
+                },
+                {
+                    "id": "description",
+                    "name": "description",
+                    "label": "Description",
+                    "type": "richtext",
+                    "searchable": true
+                },
+                {
+                    "id": "images",
+                    "name": "images",
+                    "label": "Property Images",
+                    "type": "image",
+                    "multiple": true,
+                    "maxSize": 5242880,
+                    "accept": [
+                        "image/jpeg",
+                        "image/png",
+                        "image/webp"
+                    ]
+                },
+                {
+                    "id": "agent",
+                    "name": "agent",
+                    "label": "Listing Agent",
+                    "type": "relationship",
+                    "relationshipType": "belongsTo",
+                    "targetEntity": "agent",
+                    "displayField": "name",
+                    "showInList": true
+                },
+                {
+                    "id": "createdAt",
+                    "name": "createdAt",
+                    "label": "Listed Date",
+                    "type": "createdAt",
+                    "showInList": true,
+                    "sortable": true
+                },
+                {
+                    "id": "updatedAt",
+                    "name": "updatedAt",
+                    "label": "Last Updated",
+                    "type": "updatedAt"
+                }
+            ]
+        },
+        {
+            "id": "lead",
+            "name": "Lead",
+            "namePlural": "Leads",
+            "label": "Lead",
+            "labelPlural": "Leads",
+            "description": "Potential customers interested in properties",
+            "icon": "user",
+            "color": "#8B5CF6",
+            "tableName": "leads",
+            "titleField": "name",
+            "defaultSortField": "createdAt",
+            "defaultSortOrder": "desc",
+            "softDelete": true,
+            "fields": [
+                {
+                    "id": "id",
+                    "name": "id",
+                    "label": "ID",
+                    "type": "autoId",
+                    "required": true
+                },
+                {
+                    "id": "name",
+                    "name": "name",
+                    "label": "Full Name",
+                    "type": "text",
+                    "required": true,
+                    "showInList": true,
+                    "searchable": true,
+                    "sortable": true
+                },
+                {
+                    "id": "email",
+                    "name": "email",
+                    "label": "Email",
+                    "type": "email",
+                    "required": true,
+                    "showInList": true,
+                    "searchable": true
+                },
+                {
+                    "id": "phone",
+                    "name": "phone",
+                    "label": "Phone",
+                    "type": "phone",
+                    "showInList": true
+                },
+                {
+                    "id": "status",
+                    "name": "status",
+                    "label": "Status",
+                    "type": "select",
+                    "required": true,
+                    "showInList": true,
+                    "sortable": true,
+                    "defaultValue": "new",
+                    "options": [
+                        {
+                            "value": "new",
+                            "label": "New",
+                            "color": "#3B82F6"
+                        },
+                        {
+                            "value": "contacted",
+                            "label": "Contacted",
+                            "color": "#8B5CF6"
+                        },
+                        {
+                            "value": "qualified",
+                            "label": "Qualified",
+                            "color": "#10B981"
+                        },
+                        {
+                            "value": "showing",
+                            "label": "Showing Scheduled",
+                            "color": "#F59E0B"
+                        },
+                        {
+                            "value": "negotiating",
+                            "label": "Negotiating",
+                            "color": "#EF4444"
+                        },
+                        {
+                            "value": "converted",
+                            "label": "Converted",
+                            "color": "#6B7280"
+                        },
+                        {
+                            "value": "lost",
+                            "label": "Lost",
+                            "color": "#9CA3AF"
+                        }
+                    ]
+                },
+                {
+                    "id": "budget",
+                    "name": "budget",
+                    "label": "Budget",
+                    "type": "currency",
+                    "currency": "USD",
+                    "showInList": true,
+                    "sortable": true
+                },
+                {
+                    "id": "propertyInterest",
+                    "name": "propertyInterest",
+                    "label": "Interested Properties",
+                    "type": "relationship",
+                    "relationshipType": "manyToMany",
+                    "targetEntity": "property",
+                    "displayField": "address"
+                },
+                {
+                    "id": "assignedAgent",
+                    "name": "assignedAgent",
+                    "label": "Assigned Agent",
+                    "type": "relationship",
+                    "relationshipType": "belongsTo",
+                    "targetEntity": "agent",
+                    "displayField": "name",
+                    "showInList": true
+                },
+                {
+                    "id": "notes",
+                    "name": "notes",
+                    "label": "Notes",
+                    "type": "textarea",
+                    "rows": 5
+                },
+                {
+                    "id": "source",
+                    "name": "source",
+                    "label": "Lead Source",
+                    "type": "select",
+                    "options": [
+                        {
+                            "value": "website",
+                            "label": "Website"
+                        },
+                        {
+                            "value": "referral",
+                            "label": "Referral"
+                        },
+                        {
+                            "value": "socialMedia",
+                            "label": "Social Media"
+                        },
+                        {
+                            "value": "advertisement",
+                            "label": "Advertisement"
+                        },
+                        {
+                            "value": "walkIn",
+                            "label": "Walk-in"
+                        },
+                        {
+                            "value": "other",
+                            "label": "Other"
+                        }
+                    ]
+                },
+                {
+                    "id": "createdAt",
+                    "name": "createdAt",
+                    "label": "Created Date",
+                    "type": "createdAt",
+                    "showInList": true,
+                    "sortable": true
+                }
+            ]
+        },
+        {
+            "id": "agent",
+            "name": "Agent",
+            "namePlural": "Agents",
+            "label": "Agent",
+            "labelPlural": "Agents",
+            "description": "Real estate agents",
+            "icon": "user-tie",
+            "color": "#F59E0B",
+            "tableName": "agents",
+            "titleField": "name",
+            "defaultSortField": "name",
+            "defaultSortOrder": "asc",
+            "fields": [
+                {
+                    "id": "id",
+                    "name": "id",
+                    "label": "ID",
+                    "type": "autoId",
+                    "required": true
+                },
+                {
+                    "id": "name",
+                    "name": "name",
+                    "label": "Full Name",
+                    "type": "text",
+                    "required": true,
+                    "showInList": true,
+                    "searchable": true,
+                    "sortable": true
+                },
+                {
+                    "id": "email",
+                    "name": "email",
+                    "label": "Email",
+                    "type": "email",
+                    "required": true,
+                    "showInList": true
+                },
+                {
+                    "id": "phone",
+                    "name": "phone",
+                    "label": "Phone",
+                    "type": "phone",
+                    "showInList": true
+                },
+                {
+                    "id": "photo",
+                    "name": "photo",
+                    "label": "Profile Photo",
+                    "type": "image"
+                },
+                {
+                    "id": "licenseNumber",
+                    "name": "licenseNumber",
+                    "label": "License Number",
+                    "type": "text"
+                },
+                {
+                    "id": "active",
+                    "name": "active",
+                    "label": "Active",
+                    "type": "boolean",
+                    "defaultValue": true,
+                    "showInList": true
+                }
+            ]
+        },
+        {
+            "id": "showing",
+            "name": "Showing",
+            "namePlural": "Showings",
+            "label": "Showing",
+            "labelPlural": "Showings",
+            "description": "Property showing appointments",
+            "icon": "calendar",
+            "color": "#10B981",
+            "tableName": "showings",
+            "titleField": "property",
+            "defaultSortField": "scheduledDate",
+            "defaultSortOrder": "asc",
+            "fields": [
+                {
+                    "id": "id",
+                    "name": "id",
+                    "label": "ID",
+                    "type": "autoId",
+                    "required": true
+                },
+                {
+                    "id": "property",
+                    "name": "property",
+                    "label": "Property",
+                    "type": "relationship",
+                    "relationshipType": "belongsTo",
+                    "targetEntity": "property",
+                    "displayField": "address",
+                    "required": true,
+                    "showInList": true
+                },
+                {
+                    "id": "lead",
+                    "name": "lead",
+                    "label": "Lead",
+                    "type": "relationship",
+                    "relationshipType": "belongsTo",
+                    "targetEntity": "lead",
+                    "displayField": "name",
+                    "required": true,
+                    "showInList": true
+                },
+                {
+                    "id": "agent",
+                    "name": "agent",
+                    "label": "Agent",
+                    "type": "relationship",
+                    "relationshipType": "belongsTo",
+                    "targetEntity": "agent",
+                    "displayField": "name",
+                    "required": true,
+                    "showInList": true
+                },
+                {
+                    "id": "scheduledDate",
+                    "name": "scheduledDate",
+                    "label": "Scheduled Date & Time",
+                    "type": "datetime",
+                    "required": true,
+                    "showInList": true,
+                    "sortable": true
+                },
+                {
+                    "id": "duration",
+                    "name": "duration",
+                    "label": "Duration (minutes)",
+                    "type": "number",
+                    "defaultValue": 60,
+                    "min": 15,
+                    "step": 15
+                },
+                {
+                    "id": "status",
+                    "name": "status",
+                    "label": "Status",
+                    "type": "select",
+                    "required": true,
+                    "showInList": true,
+                    "defaultValue": "scheduled",
+                    "options": [
+                        {
+                            "value": "scheduled",
+                            "label": "Scheduled",
+                            "color": "#3B82F6"
+                        },
+                        {
+                            "value": "completed",
+                            "label": "Completed",
+                            "color": "#10B981"
+                        },
+                        {
+                            "value": "cancelled",
+                            "label": "Cancelled",
+                            "color": "#EF4444"
+                        },
+                        {
+                            "value": "noShow",
+                            "label": "No Show",
+                            "color": "#F59E0B"
+                        }
+                    ]
+                },
+                {
+                    "id": "feedback",
+                    "name": "feedback",
+                    "label": "Feedback",
+                    "type": "textarea",
+                    "rows": 4
+                },
+                {
+                    "id": "createdAt",
+                    "name": "createdAt",
+                    "label": "Created",
+                    "type": "createdAt"
+                }
+            ]
+        }
+    ],
+    "views": [
+        {
+            "type": "table",
+            "id": "properties-all",
+            "name": "allProperties",
+            "label": "All Properties",
+            "description": "View all properties in the system",
+            "entityId": "property",
+            "searchable": true,
+            "inlineEditable": false,
+            "showCreate": true,
+            "showDelete": true,
+            "pageSize": 25,
+            "columns": [
+                {
+                    "field": "address",
+                    "sortable": true,
+                    "filterable": true
+                },
+                {
+                    "field": "propertyType",
+                    "sortable": true,
+                    "filterable": true,
+                    "width": 120
+                },
+                {
+                    "field": "status",
+                    "sortable": true,
+                    "filterable": true,
+                    "width": 150
+                },
+                {
+                    "field": "price",
+                    "sortable": true,
+                    "filterable": true,
+                    "width": 120
+                },
+                {
+                    "field": "bedrooms",
+                    "sortable": true,
+                    "width": 80
+                },
+                {
+                    "field": "bathrooms",
+                    "sortable": true,
+                    "width": 90
+                },
+                {
+                    "field": "agent",
+                    "filterable": true,
+                    "width": 150
+                },
+                {
+                    "field": "createdAt",
+                    "sortable": true,
+                    "width": 120
+                }
+            ],
+            "sort": {
+                "field": "createdAt",
+                "order": "desc"
+            }
+        },
+        {
+            "type": "kanban",
+            "id": "properties-pipeline",
+            "name": "propertyPipeline",
+            "label": "Property Pipeline",
+            "description": "Manage properties by status",
+            "entityId": "property",
+            "groupByField": "status",
+            "cardTitleField": "address",
+            "draggable": true,
+            "showCreate": true,
+            "columns": [
+                {
+                    "id": "available",
+                    "label": "Available",
+                    "filterValue": "available",
+                    "color": "#10B981"
+                },
+                {
+                    "id": "underContract",
+                    "label": "Under Contract",
+                    "filterValue": "underContract",
+                    "color": "#F59E0B"
+                },
+                {
+                    "id": "sold",
+                    "label": "Sold",
+                    "filterValue": "sold",
+                    "color": "#6B7280"
+                },
+                {
+                    "id": "offMarket",
+                    "label": "Off Market",
+                    "filterValue": "offMarket",
+                    "color": "#EF4444"
+                }
+            ],
+            "cardFields": [
+                {
+                    "field": "propertyType",
+                    "position": "header"
+                },
+                {
+                    "field": "price",
+                    "position": "body"
+                },
+                {
+                    "field": "bedrooms",
+                    "position": "body"
+                },
+                {
+                    "field": "bathrooms",
+                    "position": "body"
+                },
+                {
+                    "field": "agent",
+                    "position": "footer"
+                }
+            ]
+        },
+        {
+            "type": "table",
+            "id": "leads-all",
+            "name": "allLeads",
+            "label": "All Leads",
+            "description": "View all leads",
+            "entityId": "lead",
+            "searchable": true,
+            "showCreate": true,
+            "pageSize": 25,
+            "columns": [
+                {
+                    "field": "name",
+                    "sortable": true,
+                    "filterable": true
+                },
+                {
+                    "field": "email",
+                    "sortable": true
+                },
+                {
+                    "field": "phone",
+                    "width": 130
+                },
+                {
+                    "field": "status",
+                    "sortable": true,
+                    "filterable": true,
+                    "width": 150
+                },
+                {
+                    "field": "budget",
+                    "sortable": true,
+                    "width": 120
+                },
+                {
+                    "field": "assignedAgent",
+                    "filterable": true,
+                    "width": 150
+                },
+                {
+                    "field": "createdAt",
+                    "sortable": true,
+                    "width": 120
+                }
+            ],
+            "sort": {
+                "field": "createdAt",
+                "order": "desc"
+            }
+        },
+        {
+            "type": "kanban",
+            "id": "leads-pipeline",
+            "name": "leadPipeline",
+            "label": "Lead Pipeline",
+            "description": "Manage leads through the sales funnel",
+            "entityId": "lead",
+            "groupByField": "status",
+            "cardTitleField": "name",
+            "draggable": true,
+            "showCreate": true,
+            "columns": [
+                {
+                    "id": "new",
+                    "label": "New",
+                    "filterValue": "new",
+                    "color": "#3B82F6"
+                },
+                {
+                    "id": "contacted",
+                    "label": "Contacted",
+                    "filterValue": "contacted",
+                    "color": "#8B5CF6"
+                },
+                {
+                    "id": "qualified",
+                    "label": "Qualified",
+                    "filterValue": "qualified",
+                    "color": "#10B981"
+                },
+                {
+                    "id": "showing",
+                    "label": "Showing",
+                    "filterValue": "showing",
+                    "color": "#F59E0B"
+                },
+                {
+                    "id": "negotiating",
+                    "label": "Negotiating",
+                    "filterValue": "negotiating",
+                    "color": "#EF4444"
+                },
+                {
+                    "id": "converted",
+                    "label": "Converted",
+                    "filterValue": "converted",
+                    "color": "#6B7280"
+                }
+            ],
+            "cardFields": [
+                {
+                    "field": "email",
+                    "position": "body"
+                },
+                {
+                    "field": "phone",
+                    "position": "body"
+                },
+                {
+                    "field": "budget",
+                    "position": "body"
+                },
+                {
+                    "field": "assignedAgent",
+                    "position": "footer"
+                }
+            ]
+        },
+        {
+            "type": "calendar",
+            "id": "showings-calendar",
+            "name": "showingsCalendar",
+            "label": "Showings Calendar",
+            "description": "View all scheduled property showings",
+            "entityId": "showing",
+            "startDateField": "scheduledDate",
+            "titleField": "property",
+            "colorField": "status",
+            "defaultView": "week",
+            "showCreate": true
+        },
+        {
+            "type": "table",
+            "id": "agents-all",
+            "name": "allAgents",
+            "label": "All Agents",
+            "entityId": "agent",
+            "searchable": true,
+            "showCreate": true,
+            "pageSize": 50,
+            "columns": [
+                {
+                    "field": "name",
+                    "sortable": true
+                },
+                {
+                    "field": "email",
+                    "sortable": true
+                },
+                {
+                    "field": "phone"
+                },
+                {
+                    "field": "licenseNumber"
+                },
+                {
+                    "field": "active",
+                    "width": 80
+                }
+            ],
+            "sort": {
+                "field": "name",
+                "order": "asc"
+            }
+        }
+    ],
+    "navigation": [
+        {
+            "id": "dashboard",
+            "label": "Dashboard",
+            "icon": "home",
+            "viewId": "properties-all"
+        },
+        {
+            "id": "properties",
+            "label": "Properties",
+            "icon": "building",
+            "children": [
+                {
+                    "id": "properties-all",
+                    "label": "All Properties",
+                    "viewId": "properties-all"
+                },
+                {
+                    "id": "properties-pipeline",
+                    "label": "Pipeline",
+                    "viewId": "properties-pipeline"
+                }
+            ]
+        },
+        {
+            "id": "leads",
+            "label": "Leads",
+            "icon": "users",
+            "children": [
+                {
+                    "id": "leads-all",
+                    "label": "All Leads",
+                    "viewId": "leads-all"
+                },
+                {
+                    "id": "leads-pipeline",
+                    "label": "Pipeline",
+                    "viewId": "leads-pipeline"
+                }
+            ]
+        },
+        {
+            "id": "showings",
+            "label": "Showings",
+            "icon": "calendar",
+            "viewId": "showings-calendar"
+        },
+        {
+            "id": "agents",
+            "label": "Agents",
+            "icon": "user-tie",
+            "viewId": "agents-all"
+        }
+    ],
+    "defaultView": "properties-all"
+}

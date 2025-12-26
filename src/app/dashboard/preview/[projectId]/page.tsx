@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -13,9 +13,13 @@ import {
     Database,
     FileCode,
     Download,
-    Loader2
+    Loader2,
+    LayoutDashboard
 } from "lucide-react"
 import toast from "react-hot-toast"
+import { LiveCRMPreview } from "@/components/live-crm-preview"
+import type { CRMConfig, Entity, View, TableView } from "@/types/config"
+import type { Field, TextField } from "@/types/field-types"
 
 interface ProjectData {
     id: string
@@ -38,7 +42,7 @@ export default function PreviewPage() {
 
     const [project, setProject] = useState<ProjectData | null>(null)
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'overview' | 'schema' | 'sql' | 'code'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'schema' | 'sql' | 'code'>('overview')
     const [customizePrompt, setCustomizePrompt] = useState("")
     const [customizing, setCustomizing] = useState(false)
 
@@ -117,6 +121,99 @@ export default function PreviewPage() {
     const spec = project.generatedSchema
     const codeData = JSON.parse(project.generatedCode || '{"files":[],"dependencies":{},"instructions":""}')
 
+    // Convert the generated schema to CRMConfig format for LiveCRMPreview
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const crmConfig: CRMConfig | null = useMemo(() => {
+        if (!spec?.tables) return null
+
+        try {
+            // Convert tables to entities
+            const entities: Entity[] = spec.tables.map((table: {
+                name: string
+                displayName: string
+                fields: Array<{
+                    name: string
+                    displayName: string
+                    type: string
+                    required?: boolean
+                    options?: Array<{ value: string; label: string }>
+                }>
+            }) => {
+                // Convert fields
+                const fields: Field[] = table.fields.map((field): Field => {
+                    // Map schema field types to our Field types
+                    const baseField = {
+                        id: field.name,
+                        name: field.name,
+                        label: field.displayName,
+                        required: field.required,
+                        showInList: true,
+                        searchable: true,
+                        sortable: true,
+                    }
+
+                    // Default to text field
+                    return {
+                        ...baseField,
+                        type: 'text' as const,
+                        placeholder: `Enter ${field.displayName.toLowerCase()}`
+                    } as TextField
+                })
+
+                return {
+                    id: table.name,
+                    name: table.displayName.replace(/\s+/g, ''),
+                    namePlural: table.displayName,
+                    label: table.displayName,
+                    labelPlural: table.displayName,
+                    tableName: table.name,
+                    fields,
+                    titleField: fields[0]?.name,
+                    icon: '📋',
+                }
+            })
+
+            // Create default table views for each entity
+            const views: View[] = entities.map((entity): TableView => ({
+                type: 'table',
+                id: `${entity.id}-table`,
+                name: `${entity.name}Table`,
+                label: `${entity.labelPlural} Table`,
+                entityId: entity.id,
+                columns: entity.fields.slice(0, 5).map(f => ({
+                    field: f.id,
+                    sortable: true,
+                    filterable: true,
+                })),
+                pageSize: 10,
+                searchable: true,
+                showCreate: true,
+                showDelete: true,
+            }))
+
+            // Build navigation from entities
+            const navigation = entities.map(entity => ({
+                id: entity.id,
+                label: entity.labelPlural,
+                icon: entity.icon,
+                entityId: entity.id,
+            }))
+
+            return {
+                version: '1.0.0',
+                name: project.projectName,
+                description: project.originalPrompt,
+                entities,
+                views,
+                navigation,
+                defaultView: views[0]?.id,
+            }
+        } catch (error) {
+            console.error('Failed to convert schema to CRMConfig:', error)
+            return null
+        }
+    }, [spec, project.projectName, project.originalPrompt])
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
             {/* Header */}
@@ -152,23 +249,29 @@ export default function PreviewPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Tab Navigation */}
-                <div className="flex space-x-2 mb-6 border-b border-white/10">
+                <div className="flex space-x-2 mb-6 border-b border-white/10 overflow-x-auto">
                     {[
                         { id: 'overview', label: 'Overview', icon: Sparkles },
+                        { id: 'live', label: 'Live Preview', icon: LayoutDashboard },
                         { id: 'schema', label: 'Schema', icon: Database },
                         { id: 'sql', label: 'SQL', icon: FileCode },
                         { id: 'code', label: 'Code', icon: Code2 },
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id as 'overview' | 'schema' | 'sql' | 'code')}
-                            className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${activeTab === tab.id
+                            onClick={() => setActiveTab(tab.id as 'overview' | 'live' | 'schema' | 'sql' | 'code')}
+                            className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
                                 ? 'border-purple-500 text-white'
                                 : 'border-transparent text-gray-400 hover:text-white'
                                 }`}
                         >
                             <tab.icon className="w-4 h-4" />
                             {tab.label}
+                            {tab.id === 'live' && (
+                                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-green-500/20 text-green-400 rounded">
+                                    NEW
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
@@ -303,6 +406,76 @@ export default function PreviewPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </div>
+                )}
+
+                {activeTab === 'live' && (
+                    <div className="space-y-4">
+                        {crmConfig ? (
+                            <>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-white text-lg font-semibold">
+                                            Interactive CRM Preview
+                                        </h3>
+                                        <p className="text-gray-400 text-sm">
+                                            View and manage your CRM data in real-time
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                            Live Data
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl overflow-hidden shadow-2xl">
+                                    <LiveCRMPreview
+                                        projectId={project.id}
+                                        config={crmConfig}
+                                    />
+                                </div>
+
+                                <Card className="bg-white/5 backdrop-blur-lg border-white/10">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                                                <Database className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-white font-medium">Data Storage</h4>
+                                                <p className="text-gray-400 text-sm mt-1">
+                                                    Your data is stored securely using PostgreSQL JSONB.
+                                                    All changes are saved automatically and persist across sessions.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        ) : (
+                            <Card className="bg-white/5 backdrop-blur-lg border-white/10">
+                                <CardContent className="p-8 text-center">
+                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                                        <Loader2 className="w-8 h-8 text-yellow-400" />
+                                    </div>
+                                    <h3 className="text-white text-lg font-semibold mb-2">
+                                        Configuration Loading
+                                    </h3>
+                                    <p className="text-gray-400 max-w-md mx-auto">
+                                        Unable to load the CRM configuration for live preview.
+                                        This may happen if the schema is still being generated.
+                                    </p>
+                                    <Button
+                                        onClick={fetchProject}
+                                        className="mt-4 bg-purple-600 hover:bg-purple-700"
+                                    >
+                                        Retry Loading
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 )}
 

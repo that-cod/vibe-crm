@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { parsePromptToCRMSpec, validateCRMSpec } from '@/lib/ai/orchestrator'
-import { generateSQL, generateSchemaName } from '@/lib/ai/schema-generator'
-import { generateRefineApp } from '@/lib/ai/code-generator'
-import { createUserSchema, executeInSchema } from '@/lib/supabase'
+import { generateCRM, validateCRM } from '@/lib/ai/orchestrator'
 import { getErrorMessage } from '@/types/errors'
 
+/**
+ * POST /api/generate-crm
+ * 
+ * Generate a new CRM configuration from a natural language prompt.
+ * 
+ * NEW BEHAVIOR (Phase 4):
+ * - Returns CRMConfig JSON (not code)
+ * - No SQL/TSX generation
+ * - Instant preview possible
+ * - Config stored in database
+ */
 export async function POST(request: NextRequest) {
     try {
         // Authenticate user
@@ -25,7 +33,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check resource quota: Limit CRMs per user to prevent abuse
+        // Check resource quota
         const MAX_CRMS_PER_USER = 10
         const existingProjectCount = await prisma.cRMProject.count({
             where: { userId }
@@ -44,85 +52,55 @@ export async function POST(request: NextRequest) {
         }
 
         // Get user's business profile
+        // Get user's business profile
         const businessProfile = await prisma.businessProfile.findUnique({
-            where: { userId },
+            where: { userId }
         })
 
-        // STEP 1: Parse prompt to CRM specification
-        console.log('Step 1: Parsing prompt to CRM spec...')
-        const crmSpec = await parsePromptToCRMSpec(prompt, {
+        // STEP 1: Generate CRM Configuration (Phase 4: JSON Config)
+        console.log('Step 1: Generating CRM configuration...')
+        const config = await generateCRM(prompt, {
             industry: businessProfile?.industry,
             primaryUseCase: businessProfile?.primaryUseCase,
         })
 
-        // Validate the spec
-        const validation = validateCRMSpec(crmSpec)
+        // Validation is done inside generateCRM(), but double-check
+        const validation = validateCRM(config)
         if (!validation.valid) {
             return NextResponse.json(
-                { error: 'Invalid CRM specification', details: validation.errors },
+                { error: 'Invalid CRM configuration', details: validation.errors },
                 { status: 400 }
             )
         }
 
-        // STEP 2: Generate schema name and SQL
-        console.log('Step 2: Generating SQL schema...')
-        const schemaName = generateSchemaName(userId)
-        const sql = generateSQL(crmSpec, schemaName)
-
-        // STEP 3: Create PostgreSQL schema in Supabase
-        console.log('Step 3: Creating database schema...')
-        const schemaResult = await createUserSchema(schemaName)
-        if (!schemaResult.success) {
-            return NextResponse.json(
-                { error: 'Failed to create database schema', details: schemaResult.error },
-                { status: 500 }
-            )
-        }
-
-        // STEP 4: Execute SQL to create tables
-        console.log('Step 4: Creating tables...')
-        const sqlResult = await executeInSchema(schemaName, sql)
-        if (!sqlResult.success) {
-            return NextResponse.json(
-                { error: 'Failed to create tables', details: sqlResult.error },
-                { status: 500 }
-            )
-        }
-
-        // STEP 5: Generate Refine.dev code
-        console.log('Step 5: Generating application code...')
-        const generatedCode = await generateRefineApp(crmSpec, schemaName)
-
-        // STEP 6: Save project to database
-        console.log('Step 6: Saving project...')
+        // STEP 2: Save project to database (config instead of code)
+        console.log('Step 2: Saving project...')
         const project = await prisma.cRMProject.create({
             data: {
                 userId,
-                projectName: crmSpec.tables[0]?.displayName + ' CRM' || 'My CRM',
-                schemaName,
+                projectName: config.name || 'My CRM',
+                schemaName: '', // No longer needed with config approach
                 originalPrompt: prompt,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                generatedSchema: crmSpec as any,
-                generatedSQL: sql,
-                generatedCode: JSON.stringify(generatedCode),
+                generatedSchema: config as any,  // Store CRMConfig in generatedSchema
+                generatedSQL: '',  // No longer generating SQL
+                generatedCode: JSON.stringify({ config }),  // Store config in generatedCode for now
                 status: 'completed',
             },
         })
 
-        console.log('✅ CRM generation completed successfully!')
+        console.log('✅ CRM configuration generated successfully!')
 
         return NextResponse.json({
             success: true,
             projectId: project.id,
-            schemaName,
-            spec: crmSpec,
-            previewUrl: `/dashboard/preview/${project.id}`,
+            config,
+            previewUrl: `/crm/${config.entities[0]?.id || ''}`,  // Link to first entity
         })
     } catch (error) {
         console.error('CRM generation error:', error)
         const errorMessage = getErrorMessage(error)
 
-        // Try to save failed project
+        // Try to save failed attempt
         try {
             const session = await auth()
             if (session?.user?.id) {

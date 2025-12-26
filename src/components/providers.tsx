@@ -1,11 +1,14 @@
 "use client"
 
 import { SessionProvider } from "next-auth/react"
+import { CRMProvider } from "./crm-provider"
 
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
-            {children}
+            <CRMProvider>
+                {children}
+            </CRMProvider>
         </SessionProvider>
     )
 }

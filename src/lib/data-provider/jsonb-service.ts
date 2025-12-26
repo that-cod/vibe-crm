@@ -1,13 +1,24 @@
 /**
- * JSONB Data Service
+ * JSONB Data Service - SERVER ONLY
  * 
  * Low-level service for direct JSONB operations on the crm_data table.
  * Use this for operations that don't fit the Refine data provider pattern,
  * such as complex aggregations or cross-entity queries.
+ * 
+ * WARNING: This service uses supabaseAdmin and should ONLY be used
+ * in server components, API routes, or server actions.
  */
 
+// Runtime check to ensure server-side only usage
+if (typeof window !== 'undefined') {
+    throw new Error(
+        'jsonb-service.ts should only be used on the server side. ' +
+        'For client-side data access, use createJSONBDataProvider instead.'
+    )
+}
+
 import { supabaseAdmin } from '../supabase'
-import { CRMDataRecord } from './jsonb-data-provider'
+import type { CRMDataRecord } from './jsonb-data-provider'
 
 /**
  * Query options for listing records

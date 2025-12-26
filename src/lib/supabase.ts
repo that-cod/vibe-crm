@@ -1,19 +1,59 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Environment variables with fallbacks to prevent crashes
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-// Client for browser
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Flag to check if we're on the server
+const isServer = typeof window === 'undefined'
 
-// Admin client for server-side operations (creating schemas, running SQL)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
-})
+// Client for browser - only create if we have valid credentials
+let supabase: SupabaseClient
+
+if (supabaseUrl && supabaseAnonKey) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey)
+} else {
+    // Create a placeholder that will throw meaningful errors  
+    console.warn('Supabase client not initialized: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    supabase = new Proxy({} as SupabaseClient, {
+        get: () => {
+            throw new Error('Supabase client not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+        }
+    })
+}
+
+export { supabase }
+
+// Admin client for server-side operations only
+// This should NEVER be used on the client side
+let supabaseAdmin: SupabaseClient
+
+if (isServer && supabaseUrl && supabaseServiceKey) {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    })
+} else if (!isServer) {
+    // On client side, create a proxy that throws meaningful errors
+    supabaseAdmin = new Proxy({} as SupabaseClient, {
+        get: () => {
+            throw new Error('supabaseAdmin cannot be used on the client side. This is a server-only client.')
+        }
+    })
+} else {
+    // Server side but missing credentials
+    console.warn('Supabase admin client not initialized: Missing SUPABASE_SERVICE_ROLE_KEY')
+    supabaseAdmin = new Proxy({} as SupabaseClient, {
+        get: () => {
+            throw new Error('Supabase admin client not configured. Please set SUPABASE_SERVICE_ROLE_KEY environment variable.')
+        }
+    })
+}
+
+export { supabaseAdmin }
 
 // ============================================
 // SECURITY VALIDATION FUNCTIONS

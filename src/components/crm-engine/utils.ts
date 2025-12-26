@@ -218,10 +218,11 @@ export function validateFieldValue(
         case 'textarea':
             const textField = field
             const strValue = String(value)
-            if (textField.maxLength && strValue.length > textField.maxLength) {
+            if ('maxLength' in textField && textField.maxLength && strValue.length > textField.maxLength) {
                 return `Maximum length is ${textField.maxLength} characters`
             }
-            if (textField.pattern) {
+            // pattern is only available on TextField, not TextAreaField
+            if ('pattern' in textField && textField.pattern) {
                 const regex = new RegExp(textField.pattern)
                 if (!regex.test(strValue)) {
                     return 'Invalid format'

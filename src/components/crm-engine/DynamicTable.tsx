@@ -199,18 +199,18 @@ function renderFieldValue(
             )
 
         case 'percentage':
-            return <span>{value}%</span>
+            return <span>{String(value)}%</span>
 
         case 'email':
-            return <a href={`mailto:${value}`}>{value}</a>
+            return <a href={`mailto:${value}`}>{String(value)}</a>
 
         case 'phone':
-            return <a href={`tel:${value}`}>{value}</a>
+            return <a href={`tel:${value}`}>{String(value)}</a>
 
         case 'url':
             return (
                 <a href={String(value)} target="_blank" rel="noopener noreferrer">
-                    {value}
+                    {String(value)}
                 </a>
             )
 

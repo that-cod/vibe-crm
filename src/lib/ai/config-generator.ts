@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { CRMConfig } from '@/types/config'
-import mockConfig from '../../public/mock-crm-config.json'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -357,11 +356,16 @@ export function validateCRMConfig(config: CRMConfig): { valid: boolean; errors: 
 
   // View validation
   config.views?.forEach((view, index) => {
-    if (!view.id) errors.push(`View ${index} missing id`)
-    if (!view.type) errors.push(`View ${view.id || index} missing type`)
-    if (!view.entityId) errors.push(`View ${view.id || index} missing entityId`)
-    else if (!entityIds.has(view.entityId)) {
-      errors.push(`View ${view.id} references non-existent entity: ${view.entityId}`)
+    // Capture id early to avoid narrowing issues
+    const viewId = view.id
+    const viewType = view.type
+    const viewEntityId = view.entityId
+
+    if (!viewId) errors.push(`View ${index} missing id`)
+    if (!viewType) errors.push(`View ${viewId || index} missing type`)
+    if (!viewEntityId) errors.push(`View ${viewId || index} missing entityId`)
+    else if (!entityIds.has(viewEntityId)) {
+      errors.push(`View ${viewId} references non-existent entity: ${viewEntityId}`)
     }
 
     // Type-specific validation

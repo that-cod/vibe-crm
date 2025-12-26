@@ -9,10 +9,17 @@
  * - Pagination
  * - Search
  * - Soft delete
+ * 
+ * NOTE: This data provider uses the regular supabase client (not admin)
+ * because it runs on the client side. Ensure your RLS policies allow
+ * the necessary operations on the crm_data table.
  */
 
 import { DataProvider, GetListParams, GetOneParams, CreateParams, UpdateParams, DeleteOneParams, GetManyParams, CustomParams, MetaQuery, BaseRecord, LogicalFilter, CrudFilter } from '@refinedev/core'
-import { supabaseAdmin } from '../supabase'
+import { supabase } from '../supabase'
+
+// Use the regular supabase client for all operations
+const supabaseClient = supabase
 
 // Type for CRM data record
 export interface CRMDataRecord {
@@ -66,7 +73,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
             const effectiveProjectId = jsonbMeta?.projectId ?? projectId
 
             // Start building the query
-            let query = supabaseAdmin
+            let query = supabaseClient
                 .from('crm_data')
                 .select('*', { count: 'exact' })
                 .eq('project_id', effectiveProjectId)
@@ -224,7 +231,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
             const jsonbMeta = meta as JSONBMeta | undefined
             const effectiveProjectId = jsonbMeta?.projectId ?? projectId
 
-            const { data, error } = await supabaseAdmin
+            const { data, error } = await supabaseClient
                 .from('crm_data')
                 .select('*')
                 .eq('id', id)
@@ -271,7 +278,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
             // Extract system fields from variables
             const { id: _, _meta, ...entityData } = variables as Record<string, unknown>
 
-            const { data, error } = await supabaseAdmin
+            const { data, error } = await supabaseClient
                 .from('crm_data')
                 .insert({
                     project_id: effectiveProjectId,
@@ -318,7 +325,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
             // Extract system fields from variables
             const { id: _, _meta, ...entityData } = variables as Record<string, unknown>
 
-            const { data, error } = await supabaseAdmin
+            const { data, error } = await supabaseClient
                 .from('crm_data')
                 .update({
                     data: entityData,
@@ -363,7 +370,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
 
             if (jsonbMeta?.hardDelete) {
                 // Hard delete - permanently remove the record
-                const { data, error } = await supabaseAdmin
+                const { data, error } = await supabaseClient
                     .from('crm_data')
                     .delete()
                     .eq('id', id)
@@ -385,7 +392,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
                 }
             } else {
                 // Soft delete - mark as deleted
-                const { data, error } = await supabaseAdmin
+                const { data, error } = await supabaseClient
                     .from('crm_data')
                     .update({
                         deleted: true,
@@ -423,7 +430,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
             const jsonbMeta = meta as JSONBMeta | undefined
             const effectiveProjectId = jsonbMeta?.projectId ?? projectId
 
-            const { data, error } = await supabaseAdmin
+            const { data, error } = await supabaseClient
                 .from('crm_data')
                 .select('*')
                 .eq('project_id', effectiveProjectId)
@@ -465,7 +472,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
                     const searchTerm = (payload as { searchTerm?: string })?.searchTerm ?? ''
                     const entityType = (payload as { entityType?: string })?.entityType
 
-                    let query = supabaseAdmin
+                    let query = supabaseClient
                         .from('crm_data')
                         .select('*')
                         .eq('project_id', effectiveProjectId)
@@ -495,7 +502,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
                         throw new Error('Record ID required for restore')
                     }
 
-                    const { data, error } = await supabaseAdmin
+                    const { data, error } = await supabaseClient
                         .from('crm_data')
                         .update({
                             deleted: false,
@@ -523,7 +530,7 @@ export function createJSONBDataProvider(projectId: string): DataProvider {
 
                     const results = await Promise.all(
                         updates.map(async ({ id, data: updateData }) => {
-                            const { data, error } = await supabaseAdmin
+                            const { data, error } = await supabaseClient
                                 .from('crm_data')
                                 .update({ data: updateData })
                                 .eq('id', id)

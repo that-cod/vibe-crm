@@ -58,7 +58,7 @@ export default function HomePage() {
               ) : (
                 <>
                   <Button
-                    onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
+                    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                     variant="ghost"
                     className="text-white hover:bg-white/10"
                   >

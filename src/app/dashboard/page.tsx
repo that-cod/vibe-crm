@@ -35,6 +35,13 @@ export default function DashboardPage() {
         if (status === "unauthenticated") {
             router.push("/")
         } else if (status === "authenticated") {
+            // Check if user needs to complete onboarding
+            // The session includes hasCompletedOnboarding from the session callback
+            if (session?.user && !session.user.hasCompletedOnboarding) {
+                router.push("/onboarding")
+                return
+            }
+
             fetchProjects()
 
             // Check for stored prompt from landing page
@@ -44,7 +51,7 @@ export default function DashboardPage() {
                 sessionStorage.removeItem("pendingPrompt")
             }
         }
-    }, [status, router])
+    }, [status, session, router])
 
     const fetchProjects = async () => {
         try {

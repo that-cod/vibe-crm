@@ -37,7 +37,7 @@ export function AuthModal({ isOpen, onClose, prompt }: AuthModalProps) {
         if (prompt) {
             sessionStorage.setItem("pendingPrompt", prompt)
         }
-        await signIn("google", { callbackUrl: "/onboarding" })
+        await signIn("google", { callbackUrl: "/dashboard" })
     }
 
     const handleGitHubSignIn = async () => {
@@ -45,7 +45,7 @@ export function AuthModal({ isOpen, onClose, prompt }: AuthModalProps) {
         if (prompt) {
             sessionStorage.setItem("pendingPrompt", prompt)
         }
-        await signIn("github", { callbackUrl: "/onboarding" })
+        await signIn("github", { callbackUrl: "/dashboard" })
     }
 
     const handleEmailAuth = async (e: React.FormEvent) => {
@@ -79,7 +79,7 @@ export function AuthModal({ isOpen, onClose, prompt }: AuthModalProps) {
             await signIn("credentials", {
                 email: formData.email,
                 password: formData.password,
-                callbackUrl: "/onboarding",
+                callbackUrl: "/dashboard",
                 redirect: true,
             })
         } catch (error) {

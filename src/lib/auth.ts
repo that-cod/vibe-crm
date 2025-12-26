@@ -86,8 +86,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (url.startsWith("/")) return `${baseUrl}${url}`
             else if (new URL(url).origin === baseUrl) return url
 
-            // Default redirect to onboarding - the onboarding page will redirect to dashboard if profile exists
-            return `${baseUrl}/onboarding`
+            // Default redirect to dashboard - it will check for onboarding if needed
+            return `${baseUrl}/dashboard`
         },
     },
     pages: {

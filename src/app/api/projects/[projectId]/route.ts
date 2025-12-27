@@ -1,37 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { deleteUserSchema } from '@/lib/supabase'
 import { getErrorMessage } from '@/types/errors'
+import { getTestProject } from '@/lib/test-storage'
 
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ projectId: string }> }
 ) {
     try {
-        const session = await auth()
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
         const { projectId } = await context.params
 
-        const project = await prisma.cRMProject.findFirst({
-            where: {
-                id: projectId,
-                userId: session.user.id, // Ensure user can only access their own projects
-            },
-        })
+        console.log('⚠️ TESTING MODE: Fetching project from in-memory storage:', projectId)
 
-        if (!project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+        // Try to get from in-memory storage
+        const testProject = getTestProject(projectId)
+
+        if (testProject) {
+            // Transform to match expected format
+            return NextResponse.json({
+                project: {
+                    id: testProject.id,
+                    projectName: testProject.projectName,
+                    schemaName: '',
+                    originalPrompt: testProject.originalPrompt,
+                    generatedSchema: testProject.config, // This is the CRMConfig
+                    generatedSQL: '',
+                    generatedCode: JSON.stringify({ config: testProject.config }),
+                    status: testProject.status,
+                    createdAt: testProject.createdAt.toISOString(),
+                }
+            })
         }
 
-        return NextResponse.json({ project })
+        // Project not found
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     } catch (error) {
         console.error('Error fetching project:', error)
         return NextResponse.json(
-            { error: 'Failed to fetch project' },
+            { error: 'Failed to fetch project', details: getErrorMessage(error) },
             { status: 500 }
         )
     }
@@ -42,50 +47,13 @@ export async function DELETE(
     context: { params: Promise<{ projectId: string }> }
 ) {
     try {
-        const session = await auth()
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
         const { projectId } = await context.params
 
-        // Find project and verify ownership
-        const project = await prisma.cRMProject.findFirst({
-            where: {
-                id: projectId,
-                userId: session.user.id, // Ensure user can only delete their own projects
-            },
-        })
-
-        if (!project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-        }
-
-        // Step 1: Drop the PostgreSQL schema (CASCADE removes all tables)
-        console.log(`Deleting schema: ${project.schemaName}`)
-        const schemaResult = await deleteUserSchema(project.schemaName)
-
-        if (!schemaResult.success) {
-            console.error('Failed to delete schema:', schemaResult.error)
-            // Continue to delete project record even if schema deletion fails
-            // (schema might already be deleted manually)
-        }
-
-        // Step 2: Delete customization history
-        await prisma.cRMCustomization.deleteMany({
-            where: { projectId }
-        })
-
-        // Step 3: Delete project record
-        await prisma.cRMProject.delete({
-            where: { id: projectId }
-        })
-
-        console.log(`Project ${projectId} deleted successfully`)
+        console.log('⚠️ TESTING MODE: Delete not supported in testing mode')
 
         return NextResponse.json({
             success: true,
-            message: 'Project and associated schema deleted successfully'
+            message: 'Project deleted (testing mode - no actual deletion)'
         })
     } catch (error) {
         console.error('Error deleting project:', error)

@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { generateCRM, validateCRM } from '@/lib/ai/orchestrator'
+import { generateFullCRM, validateCRM, type GenerationResult } from '@/lib/ai/orchestrator'
 import { getErrorMessage } from '@/types/errors'
+import {
+    addProjectFromGenerationResult,
+    seedSampleData,
+    getAllTestProjects
+} from '@/lib/test-storage'
 
 /**
  * POST /api/generate-crm
  * 
- * Generate a new CRM configuration from a natural language prompt.
+ * Generate a new CRM configuration with sample data from a natural language prompt.
  * 
- * NEW BEHAVIOR (Phase 4):
- * - Returns CRMConfig JSON (not code)
- * - No SQL/TSX generation
- * - Instant preview possible
- * - Config stored in database
+ * Returns:
+ * - config: Complete CRM configuration (entities, views, navigation)
+ * - sampleData: Pre-generated sample records for each entity
+ * - dashboardConfig: Widget configuration for the dashboard
+ * - resources: Refine.dev resource definitions
+ * 
+ * TESTING MODE:
+ * - Database operations use in-memory storage
+ * - Sample data is seeded automatically
  */
 export async function POST(request: NextRequest) {
     try {
-        // Authenticate user
-        const session = await auth()
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
-        const userId = session.user.id
         const { prompt } = await request.json()
 
         if (!prompt || prompt.length < 20) {
@@ -33,92 +33,56 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check resource quota
-        const MAX_CRMS_PER_USER = 10
-        const existingProjectCount = await prisma.cRMProject.count({
-            where: { userId }
+        // Generate unique project ID
+        const projectId = `project-${Date.now()}`
+
+        console.log('🚀 Starting CRM generation...')
+        console.log('Project ID:', projectId)
+        console.log('Prompt:', prompt.substring(0, 100) + '...')
+
+        // Generate complete CRM with sample data and dashboard
+        const result: GenerationResult = await generateFullCRM(prompt, projectId, {
+            industry: undefined,
+            primaryUseCase: undefined,
         })
 
-        if (existingProjectCount >= MAX_CRMS_PER_USER) {
-            return NextResponse.json(
-                {
-                    error: 'CRM limit reached',
-                    message: `You have reached the maximum limit of ${MAX_CRMS_PER_USER} CRMs. Please delete an existing CRM to create a new one.`,
-                    currentCount: existingProjectCount,
-                    limit: MAX_CRMS_PER_USER
-                },
-                { status: 403 }
-            )
-        }
-
-        // Get user's business profile
-        // Get user's business profile
-        const businessProfile = await prisma.businessProfile.findUnique({
-            where: { userId }
-        })
-
-        // STEP 1: Generate CRM Configuration (Phase 4: JSON Config)
-        console.log('Step 1: Generating CRM configuration...')
-        const config = await generateCRM(prompt, {
-            industry: businessProfile?.industry,
-            primaryUseCase: businessProfile?.primaryUseCase,
-        })
-
-        // Validation is done inside generateCRM(), but double-check
-        const validation = validateCRM(config)
+        // Validate the generated config (extra safety check)
+        const validation = validateCRM(result.config)
         if (!validation.valid) {
+            console.error('Validation errors:', validation.errors)
             return NextResponse.json(
                 { error: 'Invalid CRM configuration', details: validation.errors },
                 { status: 400 }
             )
         }
 
-        // STEP 2: Save project to database (config instead of code)
-        console.log('Step 2: Saving project...')
-        const project = await prisma.cRMProject.create({
-            data: {
-                userId,
-                projectName: config.name || 'My CRM',
-                schemaName: '', // No longer needed with config approach
-                originalPrompt: prompt,
-                generatedSchema: config as any,  // Store CRMConfig in generatedSchema
-                generatedSQL: '',  // No longer generating SQL
-                generatedCode: JSON.stringify({ config }),  // Store config in generatedCode for now
-                status: 'completed',
-            },
-        })
+        // Store project with all generation artifacts
+        addProjectFromGenerationResult(projectId, prompt, result)
 
-        console.log('✅ CRM configuration generated successfully!')
+        // Seed sample data into in-memory storage
+        const recordCount = seedSampleData(projectId, result.sampleData)
+        console.log(`✅ Seeded ${recordCount} sample data records`)
 
+        console.log('✅ CRM generation complete!')
+        console.log('  - Entities:', result.config.entities.length)
+        console.log('  - Views:', result.config.views.length)
+        console.log('  - Dashboard widgets:', result.dashboardConfig.widgets.length)
+        console.log('  - Sample records:', recordCount)
+
+        // Return complete generation result
         return NextResponse.json({
             success: true,
-            projectId: project.id,
-            config,
-            previewUrl: `/crm/${config.entities[0]?.id || ''}`,  // Link to first entity
+            projectId,
+            config: result.config,
+            sampleData: result.sampleData,
+            dashboardConfig: result.dashboardConfig,
+            resources: result.resources,
+            previewUrl: `/dashboard/preview/${projectId}`,
+            meta: result.meta,
         })
     } catch (error) {
         console.error('CRM generation error:', error)
         const errorMessage = getErrorMessage(error)
-
-        // Try to save failed attempt
-        try {
-            const session = await auth()
-            if (session?.user?.id) {
-                const { prompt } = await request.json()
-                await prisma.cRMProject.create({
-                    data: {
-                        userId: session.user.id,
-                        projectName: 'Failed Generation',
-                        schemaName: '',
-                        originalPrompt: prompt || '',
-                        generatedSchema: {},
-                        generatedSQL: '',
-                        generatedCode: '',
-                        status: 'failed',
-                    },
-                })
-            }
-        } catch { }
 
         return NextResponse.json(
             { error: 'CRM generation failed', details: errorMessage },
@@ -127,27 +91,32 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// GET endpoint to retrieve user's projects
+/**
+ * GET /api/generate-crm
+ * 
+ * Retrieve user's projects with their configs
+ */
 export async function GET(_request: NextRequest) {
     try {
-        const session = await auth()
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        console.log('📋 Fetching projects...')
 
-        const projects = await prisma.cRMProject.findMany({
-            where: { userId: session.user.id },
-            orderBy: { createdAt: 'desc' },
-            select: {
-                id: true,
-                projectName: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+        // Return in-memory projects for testing
+        const allProjects = getAllTestProjects()
+        const projects = allProjects
+            .slice(0, 20)
+            .map(p => ({
+                id: p.id,
+                projectName: p.projectName,
+                status: p.status,
+                createdAt: p.createdAt.toISOString(),
+                entityCount: p.config?.entities?.length || 0,
+                hasData: p.sampleData?.entities?.some(e => e.records.length > 0) || false,
+            }))
+
+        return NextResponse.json({
+            projects,
+            total: allProjects.length
         })
-
-        return NextResponse.json({ projects })
     } catch (error) {
         console.error('Error fetching projects:', error)
         return NextResponse.json(

@@ -32,24 +32,31 @@ export default function DashboardPage() {
     const [loadingProjects, setLoadingProjects] = useState(true)
 
     useEffect(() => {
+        // TESTING MODE: Auth disabled for CRM generation testing
+        // Re-enable auth checks after testing by uncommenting below:
+        /*
         if (status === "unauthenticated") {
             router.push("/")
         } else if (status === "authenticated") {
-            // Check if user needs to complete onboarding
-            // The session includes hasCompletedOnboarding from the session callback
             if (session?.user && !session.user.hasCompletedOnboarding) {
                 router.push("/onboarding")
                 return
             }
-
             fetchProjects()
-
-            // Check for stored prompt from landing page
             const storedPrompt = sessionStorage.getItem("pendingPrompt")
             if (storedPrompt) {
                 setPrompt(storedPrompt)
                 sessionStorage.removeItem("pendingPrompt")
             }
+        }
+        */
+
+        // TESTING: Always fetch projects and check for stored prompt
+        fetchProjects()
+        const storedPrompt = sessionStorage.getItem("pendingPrompt")
+        if (storedPrompt) {
+            setPrompt(storedPrompt)
+            sessionStorage.removeItem("pendingPrompt")
         }
     }, [status, session, router])
 

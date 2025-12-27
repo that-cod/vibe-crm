@@ -240,8 +240,8 @@ User Request: ${prompt}
 Generate a complete, production-ready CRM configuration.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 8000,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 16000, // Increased to avoid truncation
       temperature: 0.3,
       system: CONFIG_GENERATOR_SYSTEM_PROMPT,
       messages: [
@@ -254,16 +254,68 @@ Generate a complete, production-ready CRM configuration.`
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    // Extract JSON (Claude might wrap in markdown)
-    const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/({[\s\S]*})/)
-
-    if (!jsonMatch) {
-      throw new Error('Failed to parse JSON from AI response')
+    // Log if response was truncated
+    if (message.stop_reason === 'max_tokens') {
+      console.warn('⚠️ Claude response was truncated! Consider increasing max_tokens.')
     }
 
-    const config: CRMConfig = JSON.parse(jsonMatch[1] || jsonMatch[0])
+    // Extract JSON with multiple patterns (Claude might wrap in markdown or return plain JSON)
+    let jsonString: string | null = null
 
-    return config
+    // Pattern 1: Complete markdown code block with closing backticks
+    const markdownMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/)
+    if (markdownMatch) {
+      jsonString = markdownMatch[1].trim()
+    }
+
+    // Pattern 2: Markdown block without closing backticks (truncated response)
+    if (!jsonString) {
+      const truncatedMarkdownMatch = responseText.match(/```json\s*([\s\S]*)/)
+      if (truncatedMarkdownMatch) {
+        jsonString = truncatedMarkdownMatch[1].trim()
+        console.log('Using truncated markdown match')
+      }
+    }
+
+    // Pattern 3: Raw JSON object anywhere in the response
+    if (!jsonString) {
+      const rawJsonMatch = responseText.match(/(\{[\s\S]*\})/)
+      if (rawJsonMatch) {
+        jsonString = rawJsonMatch[1]
+        console.log('Using raw JSON match')
+      }
+    }
+
+    if (!jsonString) {
+      console.error('No JSON found in response. Response starts with:', responseText.substring(0, 500))
+      throw new Error('Failed to extract JSON from AI response')
+    }
+
+    // Clean up common JSON issues from LLM output
+    // Remove trailing commas before } or ]
+    jsonString = jsonString.replace(/,(\s*[}\]])/g, '$1')
+    // Remove any comments (shouldn't be there but just in case)
+    jsonString = jsonString.replace(/\/\/.*$/gm, '')
+
+    try {
+      const config: CRMConfig = JSON.parse(jsonString)
+      return config
+    } catch (parseError) {
+      // Log detailed error for debugging
+      console.error('JSON parse error:', parseError)
+      console.error('Attempted to parse (first 2000 chars):', jsonString.substring(0, 2000))
+
+      // Try to identify the error location
+      if (parseError instanceof SyntaxError) {
+        const posMatch = parseError.message.match(/position (\d+)/)
+        if (posMatch) {
+          const pos = parseInt(posMatch[1])
+          console.error('Error context around position', pos, ':', jsonString.substring(Math.max(0, pos - 100), pos + 100))
+        }
+      }
+
+      throw new Error(`Invalid JSON in AI response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`)
+    }
   } catch (error) {
     console.error('Config generation error:', error)
     throw new Error(`Failed to generate CRM config: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -289,7 +341,7 @@ Modification Request: ${modificationPrompt}
 Return the COMPLETE updated configuration (not just changes). Preserve all existing entities/views unless the modification explicitly changes them.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 8000,
       temperature: 0.2,
       system: CONFIG_GENERATOR_SYSTEM_PROMPT + '\n\nYou are modifying an existing config. Return the FULL updated config.',

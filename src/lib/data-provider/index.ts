@@ -1,7 +1,7 @@
 /**
  * Data Provider Exports
  * 
- * This module exports the custom JSONB data provider for Refine.
+ * This module exports the custom JSONB data provider and live provider for Refine.
  * The data provider uses the regular supabase client and can be
  * used in client components.
  * 
@@ -11,6 +11,18 @@
 
 // Export the main data provider factory (client-compatible)
 export { createJSONBDataProvider, type CRMDataRecord } from './jsonb-data-provider'
+
+// Export the test storage provider (in-memory, for demos)
+export { createTestStorageDataProvider } from './test-storage-provider'
+
+// Export the live provider for real-time updates
+export {
+    createCRMLiveProvider,
+    useCRMLiveProvider,
+    cleanupCRMSubscriptions,
+    getActiveSubscriptionCount,
+    isSubscribed,
+} from './crm-live-provider'
 
 // NOTE: The jsonb-service module is SERVER ONLY.
 // Import it directly in server components/API routes:
@@ -24,4 +36,19 @@ export function initializeDataProvider(projectId: string) {
     return import('./jsonb-data-provider').then(({ createJSONBDataProvider }) =>
         createJSONBDataProvider(projectId)
     )
+}
+
+/**
+ * Helper to initialize both data and live providers
+ */
+export async function initializeCRMProviders(projectId: string) {
+    const [{ createJSONBDataProvider }, { createCRMLiveProvider }] = await Promise.all([
+        import('./jsonb-data-provider'),
+        import('./crm-live-provider'),
+    ])
+
+    return {
+        dataProvider: createJSONBDataProvider(projectId),
+        liveProvider: createCRMLiveProvider(projectId),
+    }
 }
